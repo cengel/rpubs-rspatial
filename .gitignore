@@ -1,0 +1,6 @@
+# Ignore everything, including subdirs
+*
+# Don't ignore gitignore and Rmd files
+!.gitignore
+!*.Rmd
+
