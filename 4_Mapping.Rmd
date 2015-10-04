@@ -1,5 +1,7 @@
 ---
 title: "Making maps in R"
+author: "claudia a engel"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
 output:
   html_document:
     toc: true
@@ -9,7 +11,9 @@ output:
     fig_width: 6
     fig_height: 6
 ---
-
+<!--html_preserve-->
+<a href="https://github.com/cengel/rpubs-rspatial"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/a6677b08c955af8400f44c6298f40e7d19cc5b2d/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f677261795f3664366436642e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png"></a>
+<!--/html_preserve-->
 
 ```{r knitr_init, echo=FALSE, cache=FALSE}
 library(knitr)
@@ -28,7 +32,7 @@ opts_knit$set(width=75)
 apikey <- "be1fc5cfc4d04d64a2e305ade21eb7d2" #for cloudmade
 ```
 
-R comes wiht a basic `plot` command, which can also be used for simple map viewing. In this workshop we will will look into two difdferent options to map spatial data in R. `sp` comes with a more refined plot command `spplot`, which takes `Spatial*~` objects. Secondly, there is `ggplot`, a more general purpose plotting library, but very powerful and one can make great maps. An additional package `ggmap` builds on `ggplot` and allows to draw in tiled basemaps from different services.
+R comes with a basic `plot` command, which can also be used for simple map viewing. In this workshop we will will look into two difdferent options to map spatial data in R. `sp` comes with a more refined plot command `spplot`, which takes `Spatial*~` objects. Secondly, there is `ggplot`, a more general purpose plotting library, but very powerful and one can make great maps. An additional package `ggmap` builds on `ggplot` and allows to draw in tiled basemaps from different services.
 
 Libraries needed for this section are:
 
