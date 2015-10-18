@@ -33,9 +33,19 @@ opts_knit$set(width=75)
 
 ***
 
-In this section we will look at some libraries and commands that allow us to process spatial data in R and perform some common operations.
+In this section we will look at some libraries and commands that allow us to process spatial data in R and perform a few commonly used operations.
 
-Before we start, please make sure you have the `dplyr`, `sp`, `rgdal` installed. For `rgdal` installation inststructions refer to [this earlier notebook](http://rpubs.com/cengel248/56015).
+Before we start, please make sure you have the `dplyr`, `sp`, `rgdal`, and `rgeos` installed. For `rgdal` installation inststructions refer to [this earlier notebook](http://rpubs.com/cengel248/56015). 
+
+
+__Mac only__: There currently is no binary version of the latest `rgdal`. If installation of `rgeos` on Mac does not work, try to install this earlier version, which *is* provided as binary:
+
+```{r eval=FALSE}
+require(devtools)
+install_version("rgeos", version = "0.3-11", repos = "http://cran.us.r-project.org")
+```
+
+Or see [here](http://dyerlab.bio.vcu.edu/2015/03/31/install-rgeos-on-osx/) to compile your own from source.
 
 
 # 1. Attribute Join
@@ -44,11 +54,16 @@ An attribute join brings tabular data into a geographic context. It refers to th
 
 If you have done attribute joins of shapefiles in GIS software like _ArcGIS_ or _QGis_ you know that you need a __unique identifier__ in both the attribute table of the shapefile and the table to be joined. 
 
-In order to combine a `Spatial*Dataframe` with another table (whic would be a dataframe in R) we do exactly the same. We have a `Spatial*Dataframe`[^1] that contains the geometries and an identifying index variable. We combine it with a dataframe, that includes the same index variable with additional variables.
+In order to combine a `Spatial*Dataframe` with another table (which would be a dataframe in R) we do exactly the same. We have a `Spatial*Dataframe`[^1] that contains the geometries and an identifying index variable. We combine it with a dataframe, that includes the same index variable with additional variables.
+
+[^1]: Per the [ESRI specification](http://www.esri.com/library/whitepapers/pdfs/shapefile.pdf) a shapefile always has an attribute table, so when we read it into R with the `readOGR` command from the `sp` package it automatically becomes a `Spatial*Dataframe` and the attribute table becomes the dataframe.
+
 
 ![Attribute Join of countryData table to worldCountries using unique ID variables](images/attrJoin.png)
 
-To do this we will use `left_join` from the [`dplyr`](http://cran.rstudio.com/web/packages/dplyr/vignettes/introduction.html) package mentioned earlier. 
+To do this we will use `left_join` from the [`dplyr`](http://cran.rstudio.com/web/packages/dplyr/vignettes/introduction.html) package [mentioned earlier](http://rstudio-pubs-static.s3.amazonaws.com/54694_f7eecf57c1a443db9356d3d1aab9c4c5.html#more..)[^4]. 
+
+[^4]: The `geo_join()` command from the recently released [`tigris` package](https://cran.r-project.org/web/packages/tigris/index.html) also provides a convenient way to merge a data frame to a spatial data frame.
 
 Assume we have:
 
@@ -104,8 +119,6 @@ spplot (philly, "JN9E032")
 
 ***
 
-[^1]: Per the [ESRI specification](http://www.esri.com/library/whitepapers/pdfs/shapefile.pdf) a shapefile always has an attribute table, so when we read it into R with the `readOGR` command from the `sp` package it automatically becomes a `Spatial*Dataframe` and the attribute table becomes the dataframe.
-
 
 # 2. Reprojecting
 Not unfrequently you may have to reproject spatial objects that you perhaps have acquired from differnet sources and that you need to be in the same Coordinate Reference System (CRS). The `sp` package has a function called `spTransform()` that will do this for you. The function takes as a minimum the following two arguments:
@@ -156,7 +169,7 @@ You should see something like:
 
 In order to reproject a raster, including `SpatialGridDataFrame` objects, you will want to use the `projectRaster()` command from the `raster` package[^2]. 
 
-[^2]: This has to do with the fact that a `SpatialGridDataFrame` is based on regularly spaced points. Since reprojection will typically not result in regularly spaced points as after transformation, as it will coerce it into a `SpatialPointsDataFrame`. It is possible but laborious to convert this back into a raster, as some interpolation needs to happen to turn unevently distributed points back into evenly disctibuted grid of points. If you need to you can convert a `SpatialGridDataFrame` to a `raster` with the `raster()` command.
+[^2]: This has to do with the fact that a `SpatialGridDataFrame` is based on regularly spaced points. Since reprojection will typically not result in regularly spaced points as after transformation, the output of the reprojection will be coerced into a `SpatialPointsDataFrame`. It is possible but laborious to convert this back into a raster, because some interpolation needs to happen to turn unevently distributed points back into an evenly distributed grid of points. If you need to, you can convert a `SpatialGridDataFrame` to a `raster` use the `raster()` command.
 
 Here is what it would look like to reproject the [DEM](https://www.dropbox.com/s/7e62gkbajfcabh9/DEM_10m.zip?dl=1) downloaded earlier to WGS84.
 
@@ -178,6 +191,9 @@ In R will use the `aggregate()` function from the `sp` package[^3]. Here are our
 * the `SpatialPolygonDataframe` to use for spatial aggregation and  
 * a function to use to aggregate. If we are just interested in counting the points, we can use `length` (of the respective vectors of the aggregated data). 
 
+
+[^3]: There is also an `aggregate()` function in the `stats` package that comes with the R standard install. Note that `sp` extends this function so it can take `Spatial*` objects and aggregate over the geometric features.
+
 ***
 ### Exercise 3
 
@@ -198,23 +214,16 @@ spplot(hom.cnt)
 
 ***
 
-[^3]: There is also an `aggregate()` function in the `stats` package that comes with the R standard install. Note that `sp` extends this function so it can take `Spatial*` objects and aggregate over the geometric features.
-
 
 # 4. Select Polygons by Location
 
-NOTE: For the following example we will need to make use of another library, called `rgeos`. 
-
-```{r eval=FALSE}
-install.packages("rgeos")
-```
-works for Windows, and perhaps for Mac. If not, see [here](http://dyerlab.bio.vcu.edu/2015/03/31/install-rgeos-on-osx/).
+For the following example we will need to make use of an additional another library, called `rgeos`. Make sure you load it. 
 
 Our goal is to select all Philadelphia census tracts that fall within a range of 2 kilometers from the city center.
 
 > Think about this for a moment -- what might be the steps you'd follow?
 
-Here is one, but not the only way to do this.
+Here is one way, but not the only way to do this.
 
 #. Get the polygons
 #. Find the city center coordinates
@@ -225,11 +234,11 @@ Here is one, but not the only way to do this.
 ### Exercise 4
 
 #. Get the polygons.  
-Got those.  
+We got those.  
 We will reuse `philly` for the census tract polygons.
 
 #. Find the city center coordinates.  
-Ok. I will tell you: Lat is 39.95258 and Lon is -75.16522. (There also is a convenient `geocode()` function in the `ggmap` package. We will deal with that package in the next section.)  
+Ok. I will tell you: Lat is 39.95258 and Lon is -75.16522. (There also is a convenient `geocode()` function in the `ggmap` package. We will deal with that package in the next session.)  
 With this information, create a `SpatialPoints` object named `ph.ctr`.  
 
 #. Create a buffer around the center.  
