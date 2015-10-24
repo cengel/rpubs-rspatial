@@ -32,7 +32,9 @@ opts_knit$set(width=75)
 apikey <- "be1fc5cfc4d04d64a2e305ade21eb7d2" #for cloudmade
 ```
 
-R comes with a basic `plot` command, which can also be used for simple map viewing. In this workshop we will will look into two difdferent options to map spatial data in R. `sp` comes with a more refined plot command `spplot`, which takes `Spatial*~` objects. Secondly, there is `ggplot`, a more general purpose plotting library, but very powerful and one can make great maps. An additional package `ggmap` builds on `ggplot` and allows to draw in tiled basemaps from different services.
+R comes with a basic `plot` command, which can also be used for simple map viewing. In this workshop we will will look into two different options to map spatial data in R. `sp` comes with a more refined plot command `spplot`, which takes `Spatial*` objects to plot[^6]. Secondly, there is `ggplot`, a more general purpose, but very powerful data visualization library. One can make great maps, however, [like this one](http://spatialanalysis.co.uk/2012/02/great-maps-ggplot2/). An additional package `ggmap`, builds on `ggplot` and allows to pull in tiled basemaps from different services.
+
+[^6]: There also is a package, [GISTools](https://cran.r-project.org/web/packages/GISTools/), which includes functions to drawing choropleth maps with nice looking legends, mainly coenvienience functions that wrap around the `spplot` function and make it easier to use.
 
 Libraries needed for this section are:
 
@@ -51,7 +53,7 @@ Libraries needed for this section are:
 
 Data needed:
 
-* Shapefile of Philadelphia Census Tracts: [Philly2.zip](https://www.dropbox.com/s/pzsx62zljs8b9um/Philly2.zip?dl=1) (new attributes added)
+* Shapefile of Philadelphia Census Tracts: [Philly3.zip](https://www.dropbox.com/s/pw4611p7x3h5sqa/Philly3.zip?dl=1) (new attributes added)
 * Table with Lat/Long for Philadelphia Homicides: [PhillyHomicides.csv](https://www.dropbox.com/s/g9wi5a3ntuwd3q3/PhillyHomicides.csv?dl=1)
 
 If you haven't already, create a directory `R_Workshop` on your Desktop. Then set `R_Workshop` as your working directory in R Studio (Session > Set Working Directory > Choose Directory..), and download the files above.
@@ -89,9 +91,9 @@ spplot(philly)
 
 Not particularly useful for any interpretation.
 
-You can see that by default `spplot` tries to map everything it can find in the attribute table. Sometimes, this does not even work, depending on the data types in the attribute table. It also uses one classification for all the maps. (The latter actually makes sense, as otherwise you'd be likely to compare apples with oranges.)
+You can see that by default `spplot` tries to map everything it can find in the attribute table. Sometimes, even this does not work, depending on the data types in the attribute table. It also uses one classification for all the maps. (The latter actually makes sense, as otherwise you'd be likely to compare apples with oranges.)
 
-In order to only map one or several specific attributes we can give `spplot` the explicit attribute name (or names). Try this:
+In order to select specific attributes from the attribute table to map we can give `spplot` the explicit attribute name (or names). Try this:
 
 ```{r eval=FALSE}
 spplot(philly,"HOMIC_R")
@@ -111,23 +113,23 @@ library(RColorBrewer)
 display.brewer.all(type="seq")
 
 # now let's use one of them, called OrRd
-pal <- brewer.pal(7, "OrRd") # we select 7 colors from the palette
-spplot(philly,"HOMIC_R", col.regions=pal, cuts = 6) 
+pal <- brewer.pal(5, "OrRd") # we select 5 colors from the palette
+spplot(philly,"HOMIC_R", col.regions=pal, cuts = 4) 
 
 ```
-In this example we select 7 colors from the palette and we tell `spplot` to give us 6 breaks (cuts) to make the colors match up with the class brackets.
+In this example we select 5 colors from the palette and we tell `spplot` to give us 4 breaks (cuts) to make the colors match up with the class brackets.
 
 [^2]: This is not the only way to provide color palettes. You can create your customized palette in many different ways or simply as a vector of hexbin color codes, like `c( "#FDBB84" "#FC8D59" "#EF6548")`.
 
 Looks better already. But we still have this one area standing out with an extremely high homicide rate, which really makes the remainder of the map hard to discern. So let's change the class intervals. We will use the `classInt` library to help us out.
 
-We will choose quantiles and here are the steps to determine the breaks[^3].
+We will choose quantiles. Here are the steps to determine the breaks[^3].
 
 ```{r eval=FALSE}
 library(classInt)
 
 # determine the breaks
-breaks.qt <- classIntervals(philly$HOMIC_R, n = 7, style = "quantile")
+breaks.qt <- classIntervals(philly$HOMIC_R, n = 5, style = "quantile")
 
 # add a very small value to the top breakpoint, and subtract from the bottom for symmetry 
 br <- breaks.qt$brks 
@@ -136,7 +138,7 @@ br[1] <- br[1] - offs
 br[length(br)] <- br[length(br)] + offs 
 
 # plot
-spplot(philly,"HOMIC_R", col.regions=pal, at=br)
+spplot(philly,"HOMIC_R", col.regions=pal, at=br,  main = "Philadelphia homicide rate per 100,000")
 ```
 
 ![Philly Homicides - spplot version](images/Choro_spplot.png)
@@ -152,9 +154,9 @@ Let's leave it at that for now. Feel free to experiment with mapping other varia
 
 [`ggplot2`](http://ggplot2.org/) is a powerful plotting library for R. It is not specifically geared towards mapping, but one can generate great maps. 
 
-`ggplot()` works with layers, that are added with a `+`, which allows you to superimpose either different visualizations of one dataset (e.g. a scatterplot and a fitted line) or different datasets (like different layers of the same geographical area). However, note that those layers are not exactly equivalent to GIS layers, as other parameters, loke for example statistical summaries, or plot layout options also are added with a `+`.
+`ggplot()` works with layers, that are added with a `+`, which allows you to superimpose either different visualizations of one dataset (e.g. a scatterplot and a fitted line) or different datasets (like different layers of the same geographical area). However, note that these layers are not exactly equivalent to GIS layers, as other plot parameters, like for example statistical summaries, or plot layout options also are added with a `+`.
 
-As an alternative approach to above we will map homicides not by census tracts, but by [evenly sized hexagons](https://www.mapbox.com/blog/binning-alternative-point-maps/).
+As an alternative approach to above we will first map homicides not by census tracts, but by [evenly sized hexagons](https://www.mapbox.com/blog/binning-alternative-point-maps/).
 
 ***
 ### Exercise 2
@@ -178,11 +180,11 @@ Nice, huh.
 
 ***
 
-Important to note is that `ggplot()` expects a __dataframe__ as argument. So if we wanted to plot the equivalent to the map we created with `spplot` above we need to convert `philly`, which is a `SpatialPolygonsDataframe` to a dataframe. We use the `fortify` command for this[^4].
+Important to note is that `ggplot()` expects a __dataframe__ as argument. So if we wanted to plot the equivalent to the map we created with `spplot` above we need to convert `philly`, which is a `SpatialPolygonsDataframe` to a regular, mundane dataframe. We use the `fortify` command for this[^4].
 
 Unfortunately `fortify` will make us loose the attributes, so we have to join them back in (using as before `left_join` from `dplyr`).
 
-[^4]:Note that `fortify` requires the `rgeos` package installed, which currently is not available as Mac Binary, so it needs to be compiled manually. Also the GEOS library needs to be installed. For those with Yosemite try this: download my compiled version [here](https://www.dropbox.com/s/wtoyjkq70sw0cse/rgeos.zip?dl=0) extract and put in /Users/[YourUserName]/Library/R/3.1/library.)
+[^4]:Note that `fortify` requires that the `rgeos` package is installed.
 
 ```{r eval=FALSE}
 library(dplyr)
@@ -192,12 +194,12 @@ philly@data$id = rownames(philly@data)
 
 # turn SpatialPolygonsDataframe into a data frame
 # (note that the rgeos library is required to use fortify)
-philly.pts <- fortify(philly, region="id") #this only has the coordinates
+philly.pts <- fortify(philly, region="id") #this dfr only has the coordinates
 philly.df <- left_join(philly.pts, philly@data, by="id") # add the attributes back in
 
 # calculate quantile breaks
 philly.df$qt <- cut(philly.df$HOMIC_R, 
-    breaks = quantile(philly.df$HOMIC_R, probs = 0:7/7, na.rm = TRUE), 
+    breaks = quantile(philly.df$HOMIC_R, probs = 0:5/5, na.rm = TRUE), 
     include.lowest = TRUE)
 
 # plot  
@@ -208,6 +210,7 @@ ggplot(philly.df, aes(long,lat,group=group, fill=qt)) + # the data
         axis.text=element_blank(),
         axis.title=element_blank(),
         panel.background = element_blank()) +
+  ggtitle("Philadelphia homicide rate per 100,000") +
   coord_equal()
 ```
 
