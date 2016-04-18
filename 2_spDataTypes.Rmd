@@ -37,11 +37,12 @@ opts_knit$set(width=75)
 
 ***
 
-Make sure you have the `sp` and `raster` libraries installed.
+Make sure you have the `sp` and `raster` libraries installed. [Note that the latest `raster`(2.5-2) depends on `sp` (≥ 1.2-0), so make sure that your versions align.]
 
 __Mac users__ 
 
-Since there is now a Mac binary package for `rgdal` [available on CRAN](https://cran.r-project.org/web/packages/rgdal/index.html) a installing `sp` with the default settings will also install this `rgdal` as one of its dependencies,  which includes a built-in basic GDAL that lacks all the extra GDAL formats can handle.
+Since there is now a Mac binary package for `rgdal` [available on CRAN](https://cran.r-project.org/web/packages/rgdal/index.html) a installing `sp` with the default settings will also install this `rgdal` as one of its dependencies,  which includes a built-in basic GDAL that lacks all the extra GDAL formats can handle. There is an alternative `rgdal` distributed by kyngchaos that you can use instead. Formats **not** included in the CRAN distribution but included in the kyngchaos distribution are currently: DODS, Geomedia, Interlis 1, Interlis 2, LIBKML, MSSQLSpatial, NAS, ODBC, OGDI, PGeo, PostgreSQL, OSI, Walk, XLS. (You mostly might care about having the PostgreSQL driver at some point.)
+
 
 If you __DON'T__ care, simply say:
 
@@ -57,21 +58,21 @@ If you __DO__ care, follow the instructions below.
 
         install.packages("sp", dependencies = F)
 
-#. Download the latest [GDAL complete](http://www.kyngchaos.com/files/software/frameworks/GDAL_Complete-1.11.dmg)
+#. Download the latest GDAL complete from [this site](http://www.kyngchaos.com/files/software/frameworks)
 
 #. Doubleclick and install the downloaded `.dmg` file as you are used to on a Mac.
 
-#. Make sure you have R Version 3.2 installed -- if not update it.
+#. Make sure you have R Version 3.2 or later installed -- if not update it.
 
-#. Download a different [rgdal](http://www.kyngchaos.com/files/software/frameworks/rgdal-1.0.7-1.dmg).  
+#. Download a different rgdal from [this site](http://www.kyngchaos.com/files/software/frameworks).  
 
 #. Doubleclick to open the `.dmg` file
 
-#. Move `rgdal_1.0-7.tgz` to your Desktop folder
+#. Move `rgdal_*.tgz` to your Desktop folder
 
 #. Install the local package with:
 
-        install.packages("~/Desktop/rgdal_1.0-7.tgz", repos = NULL, type = .Platform$pkgType)
+        install.packages("~/Desktop/rgdal_*.tgz", repos = NULL, type = .Platform$pkgType)
 
 __Windows users__
 
@@ -88,6 +89,18 @@ Test if all went well:
 ## 1. Spatial objects in R
 
 ### Conceptualizing a spatial Object
+
+In vector GIS we deal with, points, lines, and polygons:
+
+```{r echo=FALSE}
+px <- c(5, 7, 8, 9, 8, 7, 6) 
+py <- c(7, 3, 4, 8, 9, 15, 14) 
+plot(px, py, type="n", axes=F, xlab = '', ylab = '') 
+polygon(px, py)
+points(c(6, 9, 8, 8.5), c(9, 14, 8, 9), pch=20)
+lines(c(5, 6, 7, 8), c(5, 6,10, 11))
+lines(c(8, 9), c(14, 12))
+```
 
 ***
 #### Exercise 1
@@ -125,9 +138,9 @@ The foundational structure for *any* spatial object in `sp` is the `Spatial` cla
 In order to create a spatial object manually the basic steps are:  
 
 > I. Create a bunch of points, lines, or polygons (details below)
-
-> II. Convert those to a `Spatial*` object (`*` stands for Points, Lines, or Polygons). This steps adds the bounding box (automatically) and the slot for the Coordinate Reference System or CRS (which needs to be filled manually).
-
+ 
+> II. Convert those to a `Spatial*` object (`*` stands for Points, Lines, or Polygons). This steps adds the bounding box (automatically) and the slot for the Coordinate Reference System or CRS (which needs to be filled manually). 
+ 
 > III. (_Optional_:) Add a data frame with attribute data, which will turn your `Spatial*` object into a `Spatial*DataFrame` object.
 
 
@@ -245,6 +258,8 @@ is.projected(ph.df) # voila
 
 The following example[^4] shows how a set of polygons are built from scratch. Note that the coordinates of the _Sr4_ polygon move in the opposite direction (anti-clockwise) than the other three (clockwise); _Sr4_ is meant to represent a hole in the _Sr3_ polygon. The default value for the hole colour is "transparent". Note that the Polygons objects have to be given character ID values, and that these values must be unique for `Polygons` objects combined in a `SpatialPolygons` object.
 
+[^4]:from [Edzer Pebesma Roger S. Bivand Feb 2005: S Classes and Methods for Spatial Data: the sp Package](http://cran.r-project.org/web/packages/sp/vignettes/intro_sp.pdf)
+
 ```{r}
 # create polyon objects from coordinates
 Sr1 <-  Polygon(cbind(c(2,4,4,1,2),c(2,3,5,4,2)))
@@ -283,12 +298,15 @@ Note that we can access the information in the slots using the `@`. For example
 SpDf@bbox
 ```
 
-To look at the attribute table, we can call the data slot:
+However, it is **strongly encouraged** to use the provided functions and methods instead, like
 ```{r}
-SpDf@data
+bbox(SpDf)
 ```
 
-[^4]:from [Edzer Pebesma Roger S. Bivand Feb 2005: S Classes and Methods for Spatial Data: the sp Package](http://cran.r-project.org/web/packages/sp/vignettes/intro_sp.pdf) 
+To look at the attribute table:
+```{r}
+as.data.frame(SpDf) # instad of: SpDf@data
+```
 
 
 ## 3. Getting spatial data in and out of R 
@@ -331,8 +349,8 @@ readOGR("PH", "Philadelphia")
 2. Make sure your working directory is set to the `R_Workshop` folder and it contains the materials you downloaded and unzipped earlier.
 3. Read `PhillyTotalPopHHinc.shp` into an object called `philly`. Make sure you understand the directory structure.
 4. Examine the file, for example with `summary()`, `class()`, `str("philly", max.level = 2)`, 
-5. Take a look at the column names of the attribute data with `names(philly)`
-6. Take a look at the attribute data with `head(philly@data)`
+5. Take a look at the column names of the attribute data with `names()`
+6. Take a look at the attribute data with `head()`
 7. Note that subsetting works here: `philly[philly$totalPop > 5000,]` 
 8. Plot some attribute data: `spplot(philly, "medHHinc")`
 
@@ -347,11 +365,11 @@ GDAL supports over 200 [raster formats](http://www.gdal.org/formats_list.html) a
 
 Rasters are much more compact that vectors. Because of their regular structure the coordinates do not need to be recorded for each pixel or cell in the rectangular extent. A raster is defined by:
 
-- a CRS, 
-- coordinates of its origin, 
-- a distance or cell size in each direction, 
-- a dimension in terms of numbers of cells, 
-- and an array of values. 
+- a CRS 
+- coordinates of its origin 
+- a distance or cell size in each direction 
+- a dimension or numbers of cells in each direction
+- an array of values 
 
 If necessary, the coordinates for any cell can be computed. 
 
@@ -359,7 +377,7 @@ In `sp` the `GridTopology` class is the key element of raster representations[^5
 
 * the center coordinate pair of the south-west raster cell, 
 * the two cell sizes in the metric of the coordinates, giving the step to successive centres, and 
-* the numbers of cells in each dimension. 
+* the numbers of cells for each dimension. 
 
 [^5]: There is also a `SpatialPixels` object which stores grid topology and coordinates of the actual points.
 
@@ -367,9 +385,9 @@ A simple grid can be built like this:
 
 ```{r tidy=F}
 # specify the grid topology with the following parameters:
-# - the smallest coordinates for each dimension, 
-# - cell size in each dimension, 
-# - number of cells in each dimension
+# - the smallest coordinates for each dimension, here: 0,0
+# - cell size in each dimension, here: 1,1 
+# - number of cells in each dimension, here: 5,5
 gtopo <- GridTopology(c(0,0), c(1,1), c(5,5)) # create the grid
 datafr <- data.frame(runif(25)) # make up some data
 SpGdf <- SpatialGridDataFrame(gtopo, datafr) # create the grid data frame
@@ -381,11 +399,11 @@ spplot(SpGdf, sp.layout = c('sp.points', SpatialPoints(coordinates(SpGdf))))
 ```
 
 
-Alternatively to the `sp` package there is now a very powerful `raster` package, which works slightly differently. 
+Alternatively you can use the `raster` package, which works slightly differently. 
 
 The `raster` package is a major extension of spatial data classes to access large rasters and in particular to process very large files. It includes object classes for `RasterLayer`, `RasterStacks`, and `RasterBricks`, functions for converting among these classes, and operators for computations on the raster data. Conversion from `sp` type objects into `raster` type objects is easy.
 
-If we wanted to do the same as above, namely creating the same raster object from scratch we would do for example the following:
+If we wanted to do the same as above, namely creating the same raster object from scratch we would do the following:
 
 ```{r tidy=F}
 # specify the RasterLayer with the following parameters:
@@ -440,7 +458,7 @@ Alternatively we can use the `raster` package to read in the same file:
 [^6]: From (https://www.e-education.psu.edu/geog482fall2/c7_p8.html)
 
 
-RasterLayer objects can also be created from a simple matrix, as we did in the example from the _Introduction_.
+RasterLayer objects can also be created from a simple matrix.
 
 ```{r}
 class(volcano)
@@ -450,4 +468,4 @@ class(volcano.r)
 
 This package becomes interesting when you need to work for example with Landsat images that have multiple bands and want to perform map algebra.
 
-There are far over 100 [R packages on CRAN for reading, visualising, and analysing (geographical) spatial data](http://cran.r-project.org/web/views/Spatial.html). I recommend to visit that website if you are exploring spatial analysis with R.
+There are currently about 140 [R packages on CRAN for reading, visualising, and analysing (geographical) spatial data](http://cran.r-project.org/web/views/Spatial.html). I recommend to visit that website if you are exploring spatial analysis with R.
