@@ -35,17 +35,7 @@ opts_knit$set(width=75)
 
 In this section we will look at some libraries and commands that allow us to process spatial data in R and perform a few commonly used operations.
 
-Before we start, please make sure you have the `dplyr`, `sp`, `rgdal`, and `rgeos` installed. For `rgdal` installation inststructions refer to [this earlier notebook](http://rpubs.com/cengel248/56015). 
-
-
-__Mac only__: There currently is no binary version of the latest `rgdal`. If installation of `rgeos` on Mac does not work, try to install this earlier version, which *is* provided as binary:
-
-```{r eval=FALSE}
-require(devtools)
-install_version("rgeos", version = "0.3-11", repos = "http://cran.us.r-project.org")
-```
-
-Or see [here](http://dyerlab.bio.vcu.edu/2015/03/31/install-rgeos-on-osx/) to compile your own from source.
+Before we start, please make sure you have the `sp`, `rgdal`, and `rgeos` installed. For `rgdal` installation instructions refer to [this earlier notebook](http://rpubs.com/cengel248/56015). 
 
 
 # 1. Attribute Join
@@ -54,16 +44,16 @@ An attribute join brings tabular data into a geographic context. It refers to th
 
 If you have done attribute joins of shapefiles in GIS software like _ArcGIS_ or _QGis_ you know that you need a __unique identifier__ in both the attribute table of the shapefile and the table to be joined. 
 
-In order to combine a `Spatial*Dataframe` with another table (which would be a dataframe in R) we do exactly the same. We have a `Spatial*Dataframe`[^1] that contains the geometries and an identifying index variable. We combine it with a dataframe, that includes the same index variable with additional variables.
+In order to combine a `Spatial*Dataframe` with another table (which would be a dataframe in R) we do exactly the same. We have a `Spatial*Dataframe`[^1] that contains the geometries and an identifying index variable for each. We combine it with a dataframe, that includes the same index variable with additional variables.
 
 [^1]: Per the [ESRI specification](http://www.esri.com/library/whitepapers/pdfs/shapefile.pdf) a shapefile always has an attribute table, so when we read it into R with the `readOGR` command from the `sp` package it automatically becomes a `Spatial*Dataframe` and the attribute table becomes the dataframe.
 
 
 ![Attribute Join of countryData table to worldCountries using unique ID variables](images/attrJoin.png)
 
-To do this we will use `left_join` from the [`dplyr`](http://cran.rstudio.com/web/packages/dplyr/vignettes/introduction.html) package [mentioned earlier](http://rstudio-pubs-static.s3.amazonaws.com/54694_f7eecf57c1a443db9356d3d1aab9c4c5.html#more..)[^4]. 
+The `sp` package hase a `merge` command which extends the one from the base package and works with Spatial* objects.
 
-[^4]: The `geo_join()` command from the recently released [`tigris` package](https://cran.r-project.org/web/packages/tigris/index.html) also provides a convenient way to merge a data frame to a spatial data frame.
+[^4]: The `geo_join()` command from the [`tigris` package](https://cran.r-project.org/web/packages/tigris/index.html) also provides a convenient way to merge a data frame to a spatial data frame.
 
 Assume we have:
 
@@ -78,20 +68,12 @@ where:
 We would then say:
 
 ```{r eval=FALSE, tidy=FALSE}
-worldCountries@data <- left_join(worldCountries@data, countryData, by = c("id-number" = "countryID"))
+require(sp) # make sure that is loaded
+worldCountries <- merge(worldCountries, countryData, by.x = "id-number", by.y = "countryID")
 ```
 
-By default, the `left_join()` command will conveniently detect columns of the same name and do the join on those columns. So if we had a column in each of these objects with the __same name__, that contains the unique identifier, we could simply say:
+(You may come across alternative suggestions for joins that operate on the data slot `@data` of the Spatial* object . While they may work, we don't suggest them here, as we prefer not to use the slot explicitly.)
 
-```{r eval=FALSE}
-worldCountries@data <- left_join(worldCountries@data, countryData)
-```
-
-You may prefer that over this slightly more involved alternative:
-```
-worldCountries@data <- data.frame(worldCountries@data, countryData[match(worldCountries@data[,id-number], countryData[,countryID]),])
-```
- 
 ***
 ### Exercise 1
 
@@ -101,7 +83,7 @@ worldCountries@data <- data.frame(worldCountries@data, countryData[match(worldCo
 
   #. Download and unzip [`RSpatialDataOps.zip`](https://www.dropbox.com/s/nrc89agtiiwf0m3/RSpatialDataOps.zip?dl=1) in this directory.
 
-#. Load the `rgdal`, `sp`, and `dplyr` packages.
+#. Load the `rgdal` and `sp` packages.
 
 #. Read the `PhillyTotalPopHHinc` shapefile into an object named `philly`.
 
@@ -109,7 +91,7 @@ worldCountries@data <- data.frame(worldCountries@data, countryData[match(worldCo
 
 #. Check out the column names of `philly` and and of `education` to determine which one might contain the unique identifier for the join. Hint: use the `names()` command. (If you are interested in what those data are, you can take a look at the codebook _PhillyEducAttainment_nhgis2010_tract_codebook.txt_)
 
-#. Join the `education` data frame with `philly` using `left_join` as described above. Use the `names()` command to see if the join was successful.
+#. Join the `education` data frame with `philly` using `merge` as described above. Use the `names()` command to see if the join was successful.
 
 #. Now we could plot one of the variables we just joined - but be aware that a choropleth map of the total number of the female population per census tract with a Bachelor's degree is rather meaningless. 
 
@@ -133,32 +115,32 @@ MyNewProjection <- CRS("definition of projection goes here as string")
 spTransform(MyCity, MyNewProjection)
 ```
 
-The perhaps trickiest part here is to determine the definition of the projection string, which needs to be a string in [proj4](http://trac.osgeo.org/proj/) format. You can [look it up online](http://www.spatialreference.org). For example for [UTM zone 33N (EPSG:32633)](http://spatialreference.org/ref/epsg/wgs-84-utm-zone-33n/) the string would be:
+The perhaps trickiest part here is to determine the definition of the projection, which needs to be a character string in [proj4](http://trac.osgeo.org/proj/) format. You can [look it up online](http://www.spatialreference.org). For example for [UTM zone 33N (EPSG:32633)](http://spatialreference.org/ref/epsg/wgs-84-utm-zone-33n/) the string would be:
 
 [`+proj=utm +zone=33 +ellps=WGS84 +datum=WGS84 +units=m +no_defs`](http://spatialreference.org/ref/epsg/wgs-84-utm-zone-33n/proj4js/)
 
-Note that you can also retrieve the CRS from an existing `Spatial*` object with the `proj4string()` command. 
+You can retrieve the CRS from an existing `Spatial*` object with the `proj4string()` command. 
 
 ***
 
 ### Exercise 2
 
-#. From the files downaloaded earlier read the `PhillyHomicides` shapefile into R and name it `ph.hom`.
+#. From the files downaloaded earlier read the `PhillyHomicides` shapefile into R and name it `phHom`.
 
-#. What is the CRS of `philly`?   What is the CRS of `ph.hom`?
+#. What is the CRS of `philly`?   What is the CRS of `phHom`?
 
-#. Reproject `ph.hom` so it matches the projection of `philly` and assign it to a new object called `ph.hom.aea`.
+#. Reproject `phHom` so it matches the projection of `philly` and assign it to a new object called `phHom.aea`.
 
 #. You can use the `range()` command from the R base package to compare the coordinates before and after repojection and confirm that you actually have transformed them. `range()` simply returns the _min_ and _max_ value of a vector of numbers that you give it. So you can check with:  
-`range(coordinates(ph.hom))`  
+`range(coordinates(phHom))`  
 and  
-`range(coordinates(ph.hom.aea))`  
+`range(coordinates(phHom.aea))`  
 
 #. You can also compare them visually with:  
 ```
 par(mfrow=c(1,2)) 
-plot(ph.hom, axes=TRUE)
-plot(ph.hom.aea, axes=TRUE)
+plot(phHom, axes=TRUE)
+plot(phHom.aea, axes=TRUE)
 ```
 
 You should see something like:
@@ -199,10 +181,10 @@ In R will use the `aggregate()` function from the `sp` package[^3]. Here are our
 
 #. Our points are _ph.hom.aea_ and our polygons are _philly_. The points file has many attribute data (check with `names()`), and we only really need one of those columns to add it up to the count. We choose here _"DC_DIST"_, but you could choose any other one and it will give the same result. So in order to aggregate we say:
 ```
-hom.cnt <- aggregate(x = ph.hom.aea["DC_DIST"], by = philly, FUN = length)
+hom.cnt <- aggregate(x = phHom.aea["DC_DIST"], by = philly, FUN = length)
 ```
 (Try this for fun:  
-`hom.cnt1 <- aggregate(x = ph.hom["DC_DIST"], by = philly, FUN = length)`  
+`hom.cnt1 <- aggregate(x = phHom["DC_DIST"], by = philly, FUN = length)`  
 and see what happens.)
 
 #. Now let us investigate the object we created.
