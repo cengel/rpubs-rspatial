@@ -34,7 +34,7 @@ apikey <- "be1fc5cfc4d04d64a2e305ade21eb7d2" #for cloudmade
 
 R comes with a basic `plot` command, which can also be used for simple map viewing. In this workshop we will will look into two different options to map spatial data in R. `sp` comes with a more refined plot command `spplot`, which takes `Spatial*` objects to plot[^6]. Secondly, there is `ggplot`, a more general purpose, but very powerful data visualization library. One can make great maps, however, [like this one](http://spatialanalysis.co.uk/2012/02/great-maps-ggplot2/). An additional package `ggmap`, builds on `ggplot` and allows to pull in tiled basemaps from different services.
 
-[^6]: There also is a package, [GISTools](https://cran.r-project.org/web/packages/GISTools/), which includes functions to drawing choropleth maps with nice looking legends, mainly coenvienience functions that wrap around the `spplot` function and make it easier to use.
+[^6]: There also is a package, [GISTools](https://cran.r-project.org/web/packages/GISTools/), which includes functions to drawing choropleth maps with nice looking legends, mainly convenience functions that wrap around the `spplot` function and make it easier to use.
 
 Libraries needed for this section are:
 
