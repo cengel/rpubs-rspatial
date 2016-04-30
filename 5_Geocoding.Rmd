@@ -1,0 +1,323 @@
+---
+title: "Geocoding in R"
+author: "claudia a engel"
+date: "Last updated: `r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 4
+    theme: spacelab
+    mathjax: default
+    fig_width: 6
+    fig_height: 6
+---
+<!--html_preserve-->
+<a href="https://github.com/cengel/rpubs-rspatial"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/a6677b08c955af8400f44c6298f40e7d19cc5b2d/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f677261795f3664366436642e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png"></a>
+<!--/html_preserve-->
+
+```{r knitr_init, echo=FALSE, cache=FALSE}
+library(knitr)
+library(rmdformats)
+
+# load additional libraries for below
+library(readr)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+apikey <- "be1fc5cfc4d04d64a2e305ade21eb7d2" #for cloudmade
+```
+
+Libraries needed for this section are:
+
+* `ggmap`
+* `readr`
+* `sp`
+* `rgdal`
+* `httr`
+* `jsonlite`
+
+
+Data needed:
+
+* [Some addresses](https://www.dropbox.com/s/z0el6vfg1vtmxw5/PhillyBanks_sm.csv?dl=1)
+
+If you haven't already, create a directory `R_Workshop` on your Desktop. Then set `R_Workshop` as your working directory in R Studio (Session > Set Working Directory > Choose Directory..), and download the files above.
+
+# About geocoding 
+## What is Geocoding?[^1]
+
+- "**Geocoding** is the process of transforming a description of a location (such as an address, name of a place, or coordinates) to a location on the earth's surface." 
+- "A **geocoder** is a piece of software or a (web) service that implements a geocoding process i.e. a set of inter-related components in the form of operations, algorithms, and data sources that work together to produce a spatial representation for descriptive locational references."
+- "**Reverse geocoding** uses geographic coordinates to find a description of the location, most typically a postal address or place name." (I rarely have needed to do this.)
+
+[^1]: All from: https://en.wikipedia.org/wiki/Geocoding
+
+## How is it done?
+
+There are a number of ways, for example:
+
+- **Interpolation** for Street adresses
+
+![Interpolation for street adress geocoding](images/streetlevelGeocoding.png)
+
+- **Rooftop Level** for Street adresses
+
+![Rooftop geocoding](http://developer.teradata.com/sites/all/files/images/image3.GIF)
+
+- Open access **gazetters or databases** for location/place names (http://geonames.org or http://geonames.usgs.gov/pls/gnispublic/) or IP adresses (http://freegeoip.net)
+
+## Issues
+- **Quality of input data** or: how specific is your location information?
+- **Quality of output data**: return rate, accuracy and precision
+- **Regional differences**: Geocoding adresses in the US is a differen beast than in Nigeria. Geocoding adresses in suburban Chicago is different from geocoding in rural Alabama.
+- **Limitations of geocoding services**: Bulding and maintaining an accurate global geocoding service is very resource intensive. So is running a geocoding server, particularly if it is hit with millions of requests per second. For that reason geocoding services are usually very limited in what they offer for free.
+
+# About APIs
+## What is an API and what does it have to do with geocoding?
+
+***
+### Exercise 1
+
+#. Go to your browser.
+#. Point it to: http://maps.googleapis.com/maps/api/geocode/xml?address=Stanford+CA&sensor=false
+#. What just happened?
+#. Now write the URL to return the location of the city of Santiago -- what do we get here? 
+#. Now we want **_only_** the city in Spain. Extra bonus: Request the results in JSON format.  
+If you need, here is some documentation: https://developers.google.com/maps/documentation/geocoding/
+
+What have we learned?
+
+- We can use an API to access a service (or tools) provided by someone else without knowing the details of how this service or tool is implemented.
+
+- A geocoding API provides a direct way to access these services via an HTTP request (simply speaking: a URL).
+
+- A geocoding service API request must be in a particular form as specified by the service provier.
+
+- Geocoding services responses are returned in a structured format, which is typically XML or JSON, sometimes also KMZ. 
+
+Our goal is now to do what we did in a web browser from R. For this we have to take into account also:
+
+- **Authentication**: Using the geocoders often requires a valid API key. The key can usually be requested for free by registering at the website of the provider.
+- **Rate Limiting**: Geocode service providers typically use a rate limiting mechanism to ensure that the service stays available to all users.
+
+There are many geocoding providers[^2]. They vary in terms of format specifications, access and use(!) resrictions, quality of results, and more. So choosing a geocoder for a research project depends on the specifics of your situation. 
+
+[^2]: For a quite comprehensive overview look [here](https://docs.google.com/spreadsheet/ccc?key=0AidEWya_p6XFdGw1RmZ6TjB1ajZxVk81d2pISDMzVUE&usp=sharing) and [here](http://geoservices.tamu.edu/Services/Geocode/OtherGeocoders/). 
+
+## Generic structure of a geocoding script
+
+#. Load address data. Clean them up if necessary.
+
+#. Send each address to the geocoding service (typically: create a URL request for each address)
+
+#. Process results. Extract lat lon and any other values you are interested in and turn into into a convenient format, usually a table.
+
+#. Save the output.
+
+# Geocoding with the Google Maps API
+
+We will start by using the `geocode` command from the `ggmap` library. 
+
+***
+### Exercise 2
+
+#. Install (if you haven't) and load the `ggmap` library.
+#. Using the `geocode` command, how would you search for location of the city of Santiago.
+#. How does your result compare to what you got from when you did the query through the web browser? (Hint: check out the `output=` option of the command)
+#. Now geocode this address: `380 New York St, Redlands, CA`
+
+## R implementation example of a geocoding script
+
+Now let's write an R script to process an entire list of adresses for geocoding this way. We will use the generic script above and implement it in R:
+
+1. Load address data.  
+To save a step, we will make use of the [`readr` library](https://cran.r-project.org/web/packages/readr/index.html), which allows us to read in the csv into a data frame without downloading to the desktop, like so:
+
+```{r eval=FALSE}
+banks <- read_csv(url("https://www.dropbox.com/s/z0el6vfg1vtmxw5/PhillyBanks_sm.csv?dl=1")) # we need the `readr` library for this!
+```
+
+2. Send each address to the geocoding service.  
+The nice thing is that `geocode` can take a vector of adresses. So all we have to do is find out where the addresses are in our `banks` data frame and then submit them to the function.
+
+```{r eval=FALSE}
+banksCoords <- geocode([PUT THE ADDRESS VECTOR HERE])
+```
+
+3. Process results.  
+Most of this is all taken care of already in the `geocode` function. We only need to bind the lat/lon coordinates back to our original dataframe. We use the `cbind` function for this, like:
+
+```{r eval=FALSE}
+banksCoords <- data.frame(cbind(banks, banksCoords))
+```
+
+4. Save the output.  
+Saving out as csv is pretty easy, we can use `write.table`, for example. If we wanted to save it as a shapefile, we'd need to convert the dataframe to a spatial object first [as we did in an earlier session](http://rstudio-pubs-static.s3.amazonaws.com/172289_67a42eebbd574197b6bb15d1ef6cfe97.html#creating-a-spatial-object-from-a-latlon-table), and then save with `writeOGR`.
+
+***
+### Exercise 3
+
+#. Taking the steps outlined above, put together a script that will geocode the [Philly Bank adresses](https://www.dropbox.com/s/8l3pxnapovsurez/PhillyBanks.csv?dl=1) and save the output to a shapefile.  
+One way to do this is [here](https://www.dropbox.com/s/dd7lu3nj1oena39/ggmapGC.R?dl=1).
+
+# Geocoding with the ArcGIS API (Stanford Affiliates Only)
+Thanks to our fabulous geospatial manager [Stace Maples](https://library.stanford.edu/people/maples) who is tirelessly working to make our GIS lives easier we have our own geolocator at Stanford at
+
+>> http://locator.stanford.edu/arcgis/rest/services/geocode
+
+The services available here cover the US only. The good news here are that there are no limits as of how many addresses you can throw at this server. However, **you should let Stace know if you are intending to run a major job!**
+
+To use this service :
+
+- You need to be on the Stanford network or use [VPN](https://uit.stanford.edu/service/vpn/). 
+- You need to authenticate with WebAuth.
+- You need to get a token from here http://locator.stanford.edu/arcgis/tokens/
+    
+    Username: add `WIN\` before your SunetID, for example: `WIN\cengel`  
+    Client: RequestIP  
+    HTTP referer: [leave blank]  
+    IP:	[leave blank]  
+    Expiration: (you decide)  
+    Format: HTML  
+
+    (The token is tied to the IP address of the machine that requests the service, so if you use a laptop and move, say from your home wireless over VPN to your lab on Campus, the same token will not work.)
+
+
+Now let's put together a URL that will determine the the location for `380 New York St,  Redlands, CA`.[^3]
+
+Here is what we need:
+
+- The request URL 
+    `http://locator.stanford.edu/arcgis/rest/services/geocode/Composite_NorthAmerica/GeocodeServer/geocodeAddresses`
+    
+- The request parameters, required are `addresses=`, `token=`, and `format=` (for output).
+
+ArcGIS requires also the input addresses also to be in JSON format, which means they need to look like this: 
+
+```
+  addresses=
+  {
+    "records": [
+      {
+        "attributes": {
+          "OBJECTID": 1,
+          "SingleLine": "380 New York St., Redlands, CA, 92373"
+        }
+      }
+    ]
+  }
+```
+
+
+We attach all the request parameters to the request URL after a `?`
+
+That makes for this very convoluted URL:
+
+    http://locator.stanford.edu/arcgis/rest/services/geocode/Composite_NorthAmerica/GeocodeServer/geocodeAddresses?addresses={"records":[{"attributes":{"OBJECTID":1,"SingleLine":"380 New York St., Redlands, CA"}}]}&token=<YOUR TOKEN>&f=pjson
+
+What a mess.
+
+[^3]:I found [this](https://developers.arcgis.com/rest/geocode/api-reference/geocoding-geocode-addresses.htm) helpful. Even though it is about ESRI's World Geocoder it is very applicable for other ESRI geocoders.
+
+ArcGIS takes addresses in Single and Mutiline mode. The addresses in your table can be stored in a single field (as used above) or in multiple fields, one for each address component (Street, City, etc). Batch geocoding performance is better when the address parts are stored in separate fields (multiline). However, if there is an error in your batch, all the addresses in that batch that already have been geocoded will be dropped.
+
+***
+### Exercise 4
+
+#. Request a token.
+#. Copy and paste the URL from above, replace the place holder with your token and then copy in a browser.
+#. Try to understand the result.
+
+Now let's run the same adresses from above with the ArcGIS geocoder.
+
+Here, again are our steps.
+
+1. Load address data.  
+Like above. Check.
+
+2. Send each address to the geocoding service.  
+For our we don't have a convenient function to do this, so we have to write our own.
+
+3. Process results.  
+We will do this in the same function. Here it is:
+
+```{r eval=FALSE}
+## begin geocode function 
+# takes token and address as single line one at a time (SingleLine API)
+# needs more work for errors: e.g. what if no results are returned? etc etc
+geocodeSL <- function (address, token){
+  # load the libraries
+  require(httr)
+  require(jsonlite)
+  
+  # the server URL
+  gserver <- "http://locator.stanford.edu/arcgis/rest/services/geocode/Composite_NorthAmerica/GeocodeServer/"
+  
+  # template for SingleLine format
+  pref <- "{'records':[{'attributes':{'OBJECTID':1,'SingleLine':'"
+  suff <- "'}}]}"
+  
+  # make a valid URL
+  url <- URLencode(paste0(gserver, "geocodeAddresses?addresses=", pref, address, suff, "&token=", token, "&f=json"))
+
+  # submit the request
+  rawdata <- GET(url)
+
+  # parse JSON to get the content
+  res <- content(rawdata, "parsed", "application/json")
+  # process the result
+  resdf <- with(res$locations[[1]], {data.frame(lat = attributes$Y,
+                                                lon = attributes$X,
+                                                status = attributes$Status,
+                                                score = attributes$Score,
+                                                side = attributes$Side,
+                                                matchAdr = attributes$Match_addr)})
+  # return as data frame
+  return(resdf)
+}
+## end geocode function
+```
+
+I have uploaded this function [here](https://www.dropbox.com/s/k520ukglnrhzyj3/geocodeSL.R?dl=1), so to use it from within R, you can "source" it like this:
+
+```{r eval=FALSE}
+source("https://www.dropbox.com/s/k520ukglnrhzyj3/geocodeSL.R?dl=1")
+```
+
+This geocoding function unfortunately is not as convenient as the one we used earlier. So we have to loop through our adresses ourselves and save the result to a data frame. Before that you should set `myToken` to the value of your token and make sure that you have the `httr` and `jsonlite` librareis installed.
+
+Once thats taken care of, we can do:
+
+```{r eval=FALSE}
+banksCoords <- do.call("rbind", sapply(banks$Address, function(x) geocodeSL(x, myToken), simplify = FALSE))
+```
+
+4. Save the output.  
+As in the prior exercise.
+
+***
+### Exercise 5
+
+#. Using the provided function `geocodeSL` try to geocode the same adress table as above.  
+One way to do this is [here](https://www.dropbox.com/s/4exes0t5jw1su1m/arcgisGC.R?dl=1).
+
+
+# A word about Open Data Science Toolkit (DSK)
+
+The open Data Science Toolkit (DSK) is available as a self-contained Vagrant VM or EC2 AMI that you can deploy yourself. It includes a Google-style geocoder which emulates Google's geocoding API. This API uses data from the US Census and OpenStreetMap, along with code from GeoIQ and Schuyler Erle's Modular Street Address Geocoder.
+
+Insructions for how to run DSK on Amazon or Vagrant are here: http://www.datasciencetoolkit.org/developerdocs#amazon
+
+Note that `geocode` from `ggmap` also has the option to access DSK, but it will use their public server, which is often slow or unavailable.
+
+# Geocoding IP adresses
+
+If you are interested to do this in R see here: https://github.com/cengel/r_IPgeocode 

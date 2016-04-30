@@ -8,3 +8,4 @@ It currently includes the following sections:
 * Spatial data types in R
 * Spatial operations in R
 * Making maps in R
+* Geocoding in R
